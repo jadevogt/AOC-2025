@@ -1,0 +1,244 @@
+       PROGRAM-ID. PART1 AS "day2.part1".
+
+       ENVIRONMENT DIVISION.
+       INPUT-OUTPUT SECTION.
+       FILE-CONTROL.
+       SELECT INPUT-FILE ASSIGN TO INPUT-FILENAME
+       ORGANIZATION IS LINE SEQUENTIAL.
+
+       DATA DIVISION.
+       FILE SECTION.
+       FD INPUT-FILE.
+       01 INPUT-RECORD PIC X(80).
+
+       WORKING-STORAGE SECTION.
+       01 INPUT-FILENAME PIC X(100).
+       01 TEMP-STORAGE.
+         05 T1 PIC X(10).
+         05 T2 PIC X(10).
+         05 CURRENT-ID PIC X(10).
+         05 CURRENT-ID-LENGTH PIC 999.
+         05 TEMP-OUT PIC 9.
+       01 INPUT-USE-TEST PIC X.
+       01 INPUT-DUMMY-PAUSE PIC X.
+       01 EOF-FLAG PIC X VALUE 'N'.
+         88 END-OF-FILE VALUE 'Y'.
+       01 FILE-STATUS PIC XX.
+         88 FILE-OK VALUE '00'.
+         88 FILE-NOT-FOUND VALUE '35'.
+
+       01 SAMPLE-NAME VALUE 'SAMPLE.TXT'.
+       01 REAL-NAME VALUE 'INPUT.TXT'.
+
+       01 PRODUCT-TABLE.
+         05 PRODUCT OCCURS 100 TIMES.
+           10 START-ID PIC 9(10).
+           10 END-ID PIC 9(10).
+
+       01 LINE-COUNT PIC 9(10) VALUE 0.
+       01 LINE-TOTAL PIC 9(10) VALUE 1.
+       01 I PIC 9(10).
+       01 J PIC 9(10).
+       01 TOTAL-SUM PIC 9(32) VALUE ZEROES.
+       01 TOTAL-SUM-DISPLAY PIC Z(32).
+
+       PROCEDURE DIVISION.
+       MAIN-PARAGRAPH.
+           DISPLAY "USE TEST CASE? (Y/N): ".
+           ACCEPT INPUT-USE-TEST.
+
+           IF INPUT-USE-TEST IS EQUAL TO "Y"
+               MOVE SAMPLE-NAME TO INPUT-FILENAME
+           ELSE
+               MOVE REAL-NAME TO INPUT-FILENAME
+           END-IF.
+           PERFORM PART-1-PARAGRAPH.
+           MOVE TOTAL-SUM TO TOTAL-SUM-DISPLAY.
+           DISPLAY "PART 1 OUTPUT: ", TOTAL-SUM-DISPLAY.
+           PERFORM PART-2-PARAGRAPH.
+           MOVE TOTAL-SUM TO TOTAL-SUM-DISPLAY.
+           DISPLAY "PART 2 OUTPUT: ", TOTAL-SUM-DISPLAY.
+           DISPLAY "PRESS ENTER TO CONTINUE..."
+           ACCEPT INPUT-DUMMY-PAUSE.
+           STOP RUN.
+
+       PART-1-PARAGRAPH.
+           SET TOTAL-SUM TO 0.
+           OPEN INPUT INPUT-FILE
+           PERFORM READ-FILE-PARAGRAPH UNTIL END-OF-FILE
+           PERFORM VARYING I FROM 1 BY 1 UNTIL I > LINE-TOTAL
+               PERFORM VARYING J FROM START-ID(I) BY 1 UNTIL J > END-ID(I)
+                   SET CURRENT-ID-LENGTH TO 0
+                   CALL "GET-LENGTH" USING J,
+                                           CURRENT-ID-LENGTH
+                   IF FUNCTION MOD (CURRENT-ID-LENGTH, 2) IS EQUAL TO 0
+                       SET TEMP-OUT TO 0
+                       CALL "IS-REPEATED" USING J,
+                                                CURRENT-ID-LENGTH,
+                                                TEMP-OUT
+                       IF TEMP-OUT IS EQUAL TO 1
+                           ADD J TO TOTAL-SUM
+                       END-IF
+                   END-IF
+               END-PERFORM
+           END-PERFORM
+           CLOSE INPUT-FILE.
+
+       PART-2-PARAGRAPH.
+           SET TOTAL-SUM TO 0.
+           OPEN INPUT INPUT-FILE
+           PERFORM READ-FILE-PARAGRAPH UNTIL END-OF-FILE
+           PERFORM VARYING I FROM 1 BY 1 UNTIL I > LINE-TOTAL
+               PERFORM VARYING J FROM START-ID(I) BY 1 UNTIL J > END-ID(I)
+                   SET CURRENT-ID-LENGTH TO 0
+                   CALL "GET-LENGTH" USING J,
+                                           CURRENT-ID-LENGTH
+                       SET TEMP-OUT TO 0
+                       CALL "IS-REPEATED-MULTI" USING J,
+                                                CURRENT-ID-LENGTH,
+                                                TEMP-OUT
+                       IF TEMP-OUT IS EQUAL TO 1
+                           ADD J TO TOTAL-SUM
+                       END-IF
+               END-PERFORM
+           END-PERFORM
+           CLOSE INPUT-FILE.
+
+
+       READ-FILE-PARAGRAPH.
+           READ INPUT-FILE
+               AT END
+                   SET END-OF-FILE TO TRUE
+                   SET LINE-COUNT TO 1
+               NOT AT END
+                   ADD 1 TO LINE-COUNT
+                   UNSTRING INPUT-RECORD
+                     DELIMITED BY "-"
+                     INTO T1 T2
+                   END-UNSTRING
+                   MOVE FUNCTION NUMVAL (T1) TO START-ID(LINE-COUNT)
+                   MOVE FUNCTION NUMVAL (T2) TO END-ID(LINE-COUNT)
+                   SET LINE-TOTAL TO LINE-COUNT
+           END-READ.
+
+       END PROGRAM PART1.
+
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. GET-LENGTH.
+
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01 LEADING-ZEROES PIC 9(10).
+
+       LINKAGE SECTION.
+       01 CURRENT-ID PIC X(10).
+       01 FOUND-LENGTH PIC 999.
+
+       PROCEDURE DIVISION USING CURRENT-ID
+                                FOUND-LENGTH.
+           SET LEADING-ZEROES TO 0.
+           INSPECT CURRENT-ID
+             TALLYING LEADING-ZEROES
+             FOR LEADING '0'
+           COMPUTE FOUND-LENGTH = FUNCTION LENGTH (CURRENT-ID) - LEADING-ZEROES.
+           GOBACK.
+
+       END PROGRAM GET-LENGTH.
+
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. IS-REPEATED.
+
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01 CURRENT-SUBSTR-1 PIC X(5) VALUE SPACES.
+       01 CURRENT-SUBSTR-2 PIC X(5) VALUE SPACES.
+
+       LINKAGE SECTION.
+       01 CURRENT-ID PIC X(10).
+       01 ID-LENGTH PIC 999.
+       01 OUT PIC 9.
+
+       PROCEDURE DIVISION USING CURRENT-ID
+                                ID-LENGTH
+                                OUT.
+           SET OUT TO 0.
+           MOVE SPACES TO CURRENT-SUBSTR-1.
+           MOVE SPACES TO CURRENT-SUBSTR-2.
+           MOVE CURRENT-ID((11 - ID-LENGTH): (ID-LENGTH / 2)) TO CURRENT-SUBSTR-1.
+           MOVE CURRENT-ID((11 - ID-LENGTH / 2): (ID-LENGTH / 2)) TO CURRENT-SUBSTR-2.
+           IF CURRENT-SUBSTR-1 IS EQUAL TO CURRENT-SUBSTR-2
+               SET OUT TO 1
+           END-IF
+           GOBACK.
+
+       END PROGRAM IS-REPEATED.
+
+
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. IS-REPEATED-MULTI.
+
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01 CURRENT.
+         05 CURRENT-SUBSTR OCCURS 10 TIMES PIC X(5).
+       01 I PIC 999.
+       01 K PIC 999.
+       01 INDEX-CHAR PIC 999.
+       01 LENGTH-TO-CHECK PIC 9 VALUE 5.
+       01 SUBDIVISION-COUNT PIC 9.
+       01 ALL-EQUAL PIC 9.
+
+       LINKAGE SECTION.
+       01 CURRENT-ID PIC X(10).
+       01 ID-LENGTH PIC 999.
+       01 OUT PIC 9.
+
+       PROCEDURE DIVISION USING CURRENT-ID
+                                ID-LENGTH
+                                OUT.
+       MAIN-ENTRY-POINT.
+           SET OUT TO 0.
+           PERFORM GET-MAX-SIZE.
+           *> START FROM THE LARGEST POSSIBLE SIZE TO EXIT ASAP WITH MINIMAL SUBDIVISIONS IN BEST CASE
+           PERFORM VARYING LENGTH-TO-CHECK FROM LENGTH-TO-CHECK BY -1 UNTIL LENGTH-TO-CHECK EQUALS 0
+               IF FUNCTION MOD (ID-LENGTH, LENGTH-TO-CHECK) NOT EQUALS 0
+                   *> IMPOSSIBLE FOR ALL SUBSTRINGS TO BE EQUAL, SHORT CIRCUIT
+                   EXIT PERFORM CYCLE
+               END-IF
+               DIVIDE LENGTH-TO-CHECK INTO ID-LENGTH GIVING SUBDIVISION-COUNT
+               IF SUBDIVISION-COUNT IS EQUAL TO 0
+                   EXIT PERFORM CYCLE
+               END-IF
+               PERFORM CHECK-ALL-SUBDIVISIONS
+               IF ALL-EQUAL IS EQUAL TO 1
+                   SET OUT TO 1
+                   GOBACK
+               END-IF
+           END-PERFORM.
+           GOBACK.
+
+       GET-MAX-SIZE.
+           *> DETERMINE LARGEST SUBSTRING LENGTH THAT CAN BE REPEATED
+           MOVE 5 TO LENGTH-TO-CHECK.
+           DIVIDE 2 INTO ID-LENGTH GIVING K.
+           PERFORM UNTIL LENGTH-TO-CHECK IS EQUAL TO K
+               SUBTRACT 1 FROM LENGTH-TO-CHECK
+           END-PERFORM.
+
+       CHECK-ALL-SUBDIVISIONS.
+           *> SPLIT INTO EQUALLY SIZED SUBSTRINGS AND CHECK EQUALITY
+           PERFORM VARYING I FROM 1 BY 1 UNTIL I > SUBDIVISION-COUNT
+               MOVE SPACES TO CURRENT-SUBSTR(I)
+               MOVE CURRENT-ID((11 - ((ID-LENGTH / SUBDIVISION-COUNT)*I)): (ID-LENGTH / (SUBDIVISION-COUNT))) TO CURRENT-SUBSTR(I)
+           END-PERFORM.
+           SET ALL-EQUAL TO 1.
+           PERFORM VARYING I FROM 2 BY 1 UNTIL I > SUBDIVISION-COUNT
+               IF CURRENT-SUBSTR(I) IS NOT EQUAL TO CURRENT-SUBSTR(1)
+                   SET ALL-EQUAL TO 0
+                   *> SHORT CIRCUIT
+                   EXIT PERFORM
+               END-IF
+           END-PERFORM.
+
+       END PROGRAM IS-REPEATED-MULTI.
+
